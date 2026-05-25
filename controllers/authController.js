@@ -18,7 +18,12 @@ const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const user = snapshot.docs[0].data();
+    const userDoc = snapshot.docs[0];
+
+    const user = {
+      id: userDoc.id,
+      ...userDoc.data()
+    };
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
@@ -27,13 +32,14 @@ const login = async (req, res) => {
 
     const token = jwt.sign(
       {
+        id : user.id,
         email: user.email,
         role: user.role, 
       },
       JWT_SECRET,
       { expiresIn: "1d" },
     );
-
+    console.log(req.user);
     return res.status(200).json({
       token,
       user: { email: user.email, name: user.name },

@@ -1,6 +1,105 @@
 const { db, admin } = require("../FirebaseAdmin");
 const logActivity = require("../utils/logActivity");
-const sendNotifications = require("../utils/sendNotifications")
+const sendNotifications = require("../utils/sendNotifications");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET = process.env.JWT_SECRET;
+
+const getClientProfile = async (req, res) => {
+
+  try {
+
+    const clientDoc = await db
+      .collection("clients")
+      .doc(req.user.id)
+      .get();
+
+    if (!clientDoc.exists) {
+      return res.status(404).json({
+        message: "Client not found",
+      });
+    }
+    
+    const clientData = clientDoc.data();
+    delete clientData.password;
+
+    res.status(200).json({
+      id: clientDoc.id,
+      ...clientDoc.data(),
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: "Failed to fetch profile",
+    });
+
+  }
+
+};
+
+const clientLogin = async (req,res) => {
+  try{
+    const { email, password } = req.body;
+
+    const snapshot = await db
+      .collection("clients")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(401).json({
+        message: "Invalid credentials",
+      });
+    }
+
+    const clientDoc = snapshot.docs[0];
+
+    const client = {
+      id: clientDoc.id,
+      ...clientDoc.data(),
+    };
+
+    const isMatch = await bcrypt.compare(
+      password,
+      client.password
+    );
+
+    if (!isMatch) {
+      return res.status(401).json({
+        message: "Invalid credentials",
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: client.id,
+        email: client.email,
+        role: client.role,
+      },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    return res.status(200).json({
+      token,
+      client: {
+        id: client.id,
+        email: client.email,
+        name: client.name,
+        role: client.role,
+      },
+    });
+  }
+  catch(error){
+    res.status(401).json({message:"Invalid credentials"});
+    console.log(err)
+  }
+}
 
 const getClients = async (req, res) => {
   try {
@@ -24,13 +123,16 @@ const getClients = async (req, res) => {
 };
 
 const createClient = async (req, res) => {
-  const { name, email, company, phone } = req.body;
+  const { name, email, company, phone,password } = req.body;
 
+
+  const hashedPassword = await bcrypt.hash(password, 10);
   const docRef = await db.collection("clients").add({
     name,
     email,
     company,
     phone,
+    password:hashedPassword,
     projects: 0,
     createdAt: new Date(),
   });
@@ -59,6 +161,7 @@ const getClientCount = async (req, res) => {
     res.status(500).json({ message: "Failed to get client count" });
   }
 };
+
 const updateClient = async (req, res) => {
   try {
     const { id } = req.params;
@@ -76,6 +179,7 @@ const updateClient = async (req, res) => {
     res.status(500).json({ message: "Failed to update client" });
   }
 };
+
 const deleteClient = async (req, res) => {
   try {
     const { id } = req.params;
@@ -85,7 +189,10 @@ const deleteClient = async (req, res) => {
     res.status(500).json({ message: "Failed to delete client" });
   }
 };
+
 module.exports = {
+  getClientProfile,
+  clientLogin,
   getClients,
   createClient,
   getClientCount,

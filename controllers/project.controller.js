@@ -14,7 +14,7 @@ const getProjects = async (req, res) => {
       id: doc.id,
       ...doc.data(),
     }));
-
+     console.log(req.user);
     res.status(200).json(projects);
   } catch (error) {
     console.error("Get projects error:", error);
@@ -55,14 +55,18 @@ const createProject = async (req, res) => {
         progress: Number(progress),
         progressNotes,
         createdAt: new Date(),
-        assignedEmployeeID:null,
-        assignedEmployeeName:null
       });
 
       transaction.update(clientRef, {
-        projects: (clientDoc.data().projects || 0) + 1,
-        updatedAt: new Date(),
-      });
+      projects: (clientDoc.data().projects || 0) + 1,
+
+      assignedProjects: [
+        ...(clientDoc.data().assignedProjects || []),
+        projectRef.id,
+      ],
+
+      updatedAt: new Date(),
+    });
     });
 
     await logActivity("project", `new project ${projectName} created`);
@@ -133,6 +137,118 @@ const updateProject = async (req, res) => {
   }
 };
 
+const updateProjectProgress = async (req, res) => {
+
+  try {
+
+    const { id } = req.params;
+
+    const {
+      progress,
+      progressNotes,
+      status
+    } = req.body;
+
+    const projectRef = db.collection("projects").doc(id);
+
+    const projectDoc = await projectRef.get();
+
+    const updateProjectProgress = async (req, res) => {
+
+  try {
+
+    const { id } = req.params;
+
+    const {
+      progress,
+      progressNotes,
+      status
+    } = req.body;
+
+    const projectRef = db.collection("projects").doc(id);
+
+    const projectDoc = await projectRef.get();
+
+    if (!projectDoc.exists) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+
+    const projectData = projectDoc.data();
+
+    if (
+      !projectData.assignedEmployees?.includes(req.user.id)
+    ) {
+      return res.status(403).json({
+        message: "Access denied",
+      });
+    }
+
+    await projectRef.update({
+      progress,
+      progressNotes,
+      status,
+      updatedAt: new Date(),
+    });
+
+    console.log(projectData.assignedEmployeeId);
+    console.log(req.user.id);
+
+    res.status(200).json({
+      message: "Project progress updated",
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: "Failed to update progress",
+    });
+
+  }
+
+};
+
+    if (!projectDoc.exists) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+
+    const projectData = projectDoc.data();
+
+    if (
+      projectData.assignedEmployeeId !== req.user.id
+    ) {
+      return res.status(403).json({
+        message: "Access denied",
+      });
+    }
+
+    await projectRef.update({
+      progress,
+      progressNotes,
+      status,
+      updatedAt: new Date(),
+    });
+
+    res.status(200).json({
+      message: "Project progress updated",
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: "Failed to update progress",
+    });
+
+  }
+
+};
 
 const deleteProject = async (req, res) => {
   try {
@@ -213,6 +329,7 @@ module.exports = {
   createProject,
   getProjectCount,
   updateProject,
+  updateProjectProgress,
   deleteProject,
   assignProject,
 };

@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const JWT_SECRET = "FLOWCLIENT_SECRET";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const authMiddleware = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
@@ -12,9 +12,11 @@ const authMiddleware = (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
-  } catch {
+  } catch (err){
+    console.log(err.message);
     res.status(401).json({ message: "Invalid token" });
   }
 };
+
 
 module.exports = authMiddleware;

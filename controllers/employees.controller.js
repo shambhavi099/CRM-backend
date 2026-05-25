@@ -1,4 +1,9 @@
 const { db } = require("../FirebaseAdmin");
+const sendNotifications = require("../utils/sendNotifications")
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const getEmployees = async (req, res) => {
   try {
@@ -27,6 +32,7 @@ const createEmployee = async (req, res) => {
     number,
     email,
     DOB,
+    password,
     pastCompany,
     role,
     salary,
@@ -44,13 +50,17 @@ const createEmployee = async (req, res) => {
     emergencyContact,
   } = req.body;
 
+  const hashedPassword = await bcrypt.hash(password, 10)
+
   const docRef = await db.collection("employees").add({
     name,
     number,
     email,
     DOB,
+    password:hashedPassword,
     pastCompany,
     role,
+    userRole:"employee",
     salary,
     timeServed,
     portfolio,
@@ -91,6 +101,132 @@ const createEmployee = async (req, res) => {
   });
 };
 
+const employeeLogin = async (req, res) => {
+
+  try {
+
+    const { email, password } = req.body;
+
+    const snapshot = await db
+      .collection("employees")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(401).json({
+        message: "Invalid credentials",
+      });
+    }
+
+    const employeeDoc = snapshot.docs[0];
+
+    const employee = {
+      id: employeeDoc.id,
+      ...employeeDoc.data(),
+    };
+
+    const isMatch = await bcrypt.compare(
+      password,
+      employee.password
+    );
+
+    if (!isMatch) {
+      return res.status(401).json({
+        message: "Invalid credentials",
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: employee.id,
+        email: employee.email,
+        role: employee.userRole,
+      },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    return res.status(200).json({
+      token,
+      employee: {
+        id: employee.id,
+        name: employee.name,
+        email: employee.email,
+        role: employee.userRole,
+      },
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: "Login failed",
+    });
+
+  }
+
+};
+
+const getEmployeeProfile = async (req, res) => {
+
+  try {
+
+    const employeeDoc = await db
+      .collection("employees")
+      .doc(req.user.id)
+      .get();
+
+    if (!employeeDoc.exists) {
+      return res.status(404).json({
+        message: "Employee not found",
+      });
+    }
+
+    const employeeData = employeeDoc.data();
+
+    delete employeeData.password;
+
+    // assigned projects
+    const assignedProjects =
+      employeeData.assignedProjects || [];
+
+    const projects = [];
+
+    for (const projectId of assignedProjects) {
+
+      const projectSnap = await db
+        .collection("projects")
+        .doc(projectId)
+        .get();
+
+      if (projectSnap.exists) {
+        projects.push({
+          id: projectSnap.id,
+          ...projectSnap.data(),
+        });
+      }
+    }
+
+    res.status(200).json({
+      id: employeeDoc.id,
+      ...employeeData,
+      projects,
+    });
+
+  } catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: "Failed to fetch profile",
+    });
+
+  }
+
+};
+
 const getEmployeesCount = async (req, res) => {
   try {
     const snapshot = await db.collection("employees").count().get();
@@ -121,7 +257,6 @@ const updateEmployee = async (req, res) => {
   }
 };
 
-
 const deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
@@ -131,6 +266,7 @@ const deleteEmployee = async (req, res) => {
     res.status(500).json({ message: "Failed to delete employee" });
   }
 };
+
 const getAvailableProjects = async (req, res) => {
   try {
     const snapshot = await db.collection("projects").get();
@@ -187,16 +323,6 @@ const assignProjectToEmployee = async (req, res) => {
     const employeeData = employeeSnap.data();
     const projectData = projectSnap.data();
 
-    // Completed project check
-    if (
-      (projectData.status || "").toLowerCase() === "completed"
-    ) {
-      return res.status(400).json({
-        message:
-          "This project is already completed and cannot be assigned.",
-      });
-    }
-
     const assignedProjects =
       employeeData.assignedProjects || [];
 
@@ -217,6 +343,7 @@ const assignProjectToEmployee = async (req, res) => {
       updatedAt: new Date(),
     });
 
+
     // Update project
     const assignedEmployees =
       projectData.assignedEmployees || [];
@@ -230,6 +357,12 @@ const assignProjectToEmployee = async (req, res) => {
         updatedAt: new Date(),
       });
     }
+
+    await sendNotifications(
+      'Project Assigned Sucessfully',
+      `This ${projectData.projectName}' is assigned to '${employeeData.name}'`,
+      'PROJECT_ASSIGNED'
+    )
 
     res.status(200).json({
       message: "Project assigned successfully",
@@ -292,6 +425,7 @@ const getEmployeeProjects = async (req, res) => {
     });
   }
 };
+
 const removeProjectFromEmployee = async (req, res) => {
   try {
     const { employeeId, projectId } = req.body;
@@ -347,6 +481,12 @@ const removeProjectFromEmployee = async (req, res) => {
       updatedAt: new Date(),
     });
 
+      await sendNotifications(
+      "Project Removed",
+      `Project '${projectData.projectName}' has been removed from employee '${employeeData.name}'`,
+      "PROJECT_REMOVED"
+    );
+
     res.status(200).json({
       message: "Project removed successfully.",
     });
@@ -361,6 +501,8 @@ const removeProjectFromEmployee = async (req, res) => {
 
   
 module.exports = {
+  employeeLogin,
+  getEmployeeProfile,
   getEmployees,
   getEmployeesCount,
   updateEmployee,
