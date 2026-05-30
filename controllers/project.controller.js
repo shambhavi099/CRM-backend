@@ -14,7 +14,6 @@ const getProjects = async (req, res) => {
       id: doc.id,
       ...doc.data(),
     }));
-     console.log(req.user);
     res.status(200).json(projects);
   } catch (error) {
     console.error("Get projects error:", error);

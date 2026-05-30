@@ -24,9 +24,29 @@ const getClientProfile = async (req, res) => {
     const clientData = clientDoc.data();
     delete clientData.password;
 
-    res.status(200).json({
+    const projectIds = clientData.assignedProjects || [];
+
+    const projects = await Promise.all(
+      projectIds.map(async (projectId) => {
+
+        const projectDoc = await db
+          .collection("projects")
+          .doc(projectId)
+          .get();
+
+        if (!projectDoc.exists) return null;
+
+        return {
+          id: projectDoc.id,
+          ...projectDoc.data(),
+        };
+      })
+    );
+
+   res.status(200).json({
       id: clientDoc.id,
-      ...clientDoc.data(),
+      ...clientData,
+      projectsData: projects.filter(Boolean),
     });
 
   } catch (err) {

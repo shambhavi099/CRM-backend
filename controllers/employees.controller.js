@@ -202,9 +202,40 @@ const getEmployeeProfile = async (req, res) => {
         .get();
 
       if (projectSnap.exists) {
+
+        const projectData = projectSnap.data();
+
+        const assignedEmployees =
+          projectData.assignedEmployees || [];
+
+        const teammates = [];
+
+        for (const empId of assignedEmployees) {
+
+          // skip logged in employee
+          if (empId === req.user.id) continue;
+
+          const empSnap = await db
+            .collection("employees")
+            .doc(empId)
+            .get();
+
+          if (empSnap.exists) {
+
+            const empData = empSnap.data();
+
+            teammates.push({
+              id: empSnap.id,
+              name: empData.name,
+              role: empData.role,
+            });
+          }
+        }
+
         projects.push({
           id: projectSnap.id,
-          ...projectSnap.data(),
+          ...projectData,
+          teammates,
         });
       }
     }
@@ -224,7 +255,6 @@ const getEmployeeProfile = async (req, res) => {
     });
 
   }
-
 };
 
 const getEmployeesCount = async (req, res) => {

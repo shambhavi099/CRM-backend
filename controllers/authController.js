@@ -1,8 +1,9 @@
 const { db } = require("../FirebaseAdmin");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const JWT_SECRET = process.env.JWT_SECRET;
 
-const JWT_SECRET = "FLOWCLIENT_SECRET"; 
+ 
 
 const login = async (req, res) => {
   try {
@@ -40,9 +41,10 @@ const login = async (req, res) => {
       { expiresIn: "1d" },
     );
     console.log(req.user);
+    console.log("JWT Secret Exists:", !!process.env.JWT_SECRET);
     return res.status(200).json({
       token,
-      user: { email: user.email, name: user.name },
+      user: { email: user.email, name: user.name, role: user.role },
     });
   } catch (err) {
     console.error("Login error:", err);
