@@ -11,6 +11,8 @@ router.post(
   roleMiddleware(["admin"]), 
   createManager
 );
+//router.post("/client", authMiddleware, roleMiddleware(["admin"]), createClient);
+
 router.get(
   "/managers",
   getManagers

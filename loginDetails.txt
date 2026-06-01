@@ -1,16 +1,1 @@
-1. Employee: {
-  "email": "employee1@gmail.com",
-  "password": "new1234"
-}
-
-2. Client:  {
-  "email": "jcb12@gmail.com",
-  "password": "new1234",
-
-}
-
-3. Manager:  {
-  "email": "manager5@gmail.com",
-  "password": "new1234",
-
-}
+null

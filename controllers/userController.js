@@ -34,6 +34,39 @@ const createManager = async (req, res) => {
   }
 };
 
+/*const createClient = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const existing = await db
+      .collection("clients")
+      .where("email", "==", normalizedEmail)
+      .limit(1)
+      .get();
+
+    if (!existing.empty) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await db.collection("clients").add({
+      name,
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: "client",
+      isActive: "true",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    res.status(201).json({ message: "Client created successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to create manager" });
+  }
+};*/
+
 const getManagers = async (req, res) => {
   try {
     const snapshot = await db
@@ -70,6 +103,7 @@ const deleteManager = async (req, res) => {
 
 module.exports = {
   createManager,
+  //createClient,
   getManagers,
   deleteManager,
 };
