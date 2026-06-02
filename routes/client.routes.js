@@ -3,7 +3,7 @@ const router = express.Router();
 
 const {
   getClientProfile,
-  clientLogin,
+  getClientProjects,
   getClients,
   createClient,
   getClientCount,
@@ -13,10 +13,10 @@ const {
 const authMiddleware = require("../middleware/authMiddleware");
 const validateClient = require("../middleware/validateClient.middleware");
 
-router.post("/login", clientLogin)
 
 router.get("/", getClients);
-router.get("/profile", authMiddleware, getClientProfile)
+router.get("/profile", authMiddleware, getClientProfile);
+router.get("/projects", authMiddleware, getClientProjects);
 router.get("/count", getClientCount);
 
 router.post("/", validateClient, createClient);

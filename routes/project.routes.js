@@ -20,7 +20,7 @@ router.get("/count", getProjectCount)
 router.post("/", validateProject, createProject);
 router.put("/:id", validateProject, updateProject)
 router.delete("/:id",deleteProject)
+
 router.patch("/progress/:id", authMiddleware, roleMiddleware(["employee"]), updateProjectProgress)
  
-
 module.exports = router;

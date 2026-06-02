@@ -103,6 +103,7 @@ const createProject = async (req, res) => {
 
     // res.status(201).json({ message: "Project created" });
   } catch (err) {
+    console.log(error.message)
     res.status(500).json({ message: "Failed to create project" });
   }
 };
@@ -281,48 +282,6 @@ const deleteProject = async (req, res) => {
   }
 };
 
-const assignProject = async (req, res) => {
-  console.log(req.body);
-  try {
-    const { id } = req.params;
-    const { employeeId } = req.body;
-
-    const employeeRef = db.collection("employees").doc(employeeId);
-    const employeeDoc = await employeeRef.get();
-
-    if (!employeeDoc.exists) {
-      return res.status(404).json({
-        message: "Employee not found",
-      });
-    }
-
-    const employeeData = employeeDoc.data();
-
-    await db.collection("projects").doc(id).update({
-      assignedEmployeeId: employeeId,
-      assignedEmployeeName: employeeData.name,
-      updatedAt: new Date(),
-    });
-
-    res.status(200).json({
-      message: "Project assigned successfully",
-    });
-
-    await sendNotifications(
-    "Project Assigned",
-    `Project is assigned to ${employeeData.name}`,
-    "PROJECT_ASSIGNED"
-  );
-
-  } catch (err) {
-    console.error("Assign project error:", err);
-
-    res.status(500).json({
-      message: "Failed to assign project",
-    });
-  }
-};
-
 module.exports = {
   getProjects,
   createProject,
@@ -330,5 +289,4 @@ module.exports = {
   updateProject,
   updateProjectProgress,
   deleteProject,
-  assignProject,
 };

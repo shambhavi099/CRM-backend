@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  employeeLogin,
   getEmployeeProfile,
   getEmployees,
   getEmployeesCount,
@@ -13,6 +12,7 @@ const {
   assignProjectToEmployee,
   getEmployeeProjects,
   removeProjectFromEmployee, 
+  getEmployeeProjectsAll
 } = require("../controllers/employees.controller");
 
 const validateEmployee = require("../middleware/validateEmployee.middleware");
@@ -26,13 +26,15 @@ router.post("/", validateEmployee, createEmployee);
 router.patch("/:id", updateEmployee);
 router.delete("/:id", deleteEmployee);
 
-router.post("/login", employeeLogin);
 router.get("/profile", authMiddleware, roleMiddleware(["employee"]), getEmployeeProfile)
+
 
 // Project Routes
 router.get("/available-projects", getAvailableProjects);
 router.post("/assign-project", assignProjectToEmployee);
-router.get("/:id/projects", getEmployeeProjects);
+router.get("/projects", authMiddleware, getEmployeeProjects);
+router.get("/:id/projects", authMiddleware, getEmployeeProjectsAll);
+
 
 // Remove Assigned Project
 router.post("/remove-project", removeProjectFromEmployee); 

@@ -1,8 +1,9 @@
 const { db } = require("../FirebaseAdmin");
 const sendNotifications = require("../utils/sendNotifications")
+const { getProjectsByIds } = require("../utils/projectHelper");
+
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const getEmployees = async (req, res) => {
@@ -99,74 +100,6 @@ const createEmployee = async (req, res) => {
     futurePlans,
     emergencyContact,
   });
-};
-
-const employeeLogin = async (req, res) => {
-
-  try {
-
-    const { email, password } = req.body;
-
-    const snapshot = await db
-      .collection("employees")
-      .where("email", "==", email)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(401).json({
-        message: "Invalid credentials",
-      });
-    }
-
-    const employeeDoc = snapshot.docs[0];
-
-    const employee = {
-      id: employeeDoc.id,
-      ...employeeDoc.data(),
-    };
-
-    const isMatch = await bcrypt.compare(
-      password,
-      employee.password
-    );
-
-    if (!isMatch) {
-      return res.status(401).json({
-        message: "Invalid credentials",
-      });
-    }
-
-    const token = jwt.sign(
-      {
-        id: employee.id,
-        email: employee.email,
-        role: employee.userRole,
-      },
-      JWT_SECRET,
-      { expiresIn: "1d" }
-    );
-
-    return res.status(200).json({
-      token,
-      employee: {
-        id: employee.id,
-        name: employee.name,
-        email: employee.email,
-        role: employee.userRole,
-      },
-    });
-
-  } catch (err) {
-
-    console.log(err);
-
-    res.status(500).json({
-      message: "Login failed",
-    });
-
-  }
-
 };
 
 const getEmployeeProfile = async (req, res) => {
@@ -410,11 +343,10 @@ const assignProjectToEmployee = async (req, res) => {
 
 const getEmployeeProjects = async (req, res) => {
   try {
-    const { id } = req.params;
 
     const employeeSnap = await db
       .collection("employees")
-      .doc(id)
+      .doc(req.user.id)
       .get();
 
     if (!employeeSnap.exists) {
@@ -425,26 +357,42 @@ const getEmployeeProjects = async (req, res) => {
 
     const employeeData = employeeSnap.data();
     const assignedProjects =
-      employeeData.assignedProjects || [];
+    employeeData.assignedProjects || [];
 
-    const projects = [];
+    const projects = await getProjectsByIds(
+     assignedProjects
+   );
 
-    for (const projectId of assignedProjects) {
-      const projectSnap = await db
-        .collection("projects")
-        .doc(projectId)
-        .get();
+   //fetch team mates
 
-      if (projectSnap.exists) {
-        projects.push({
-          id: projectSnap.id,
-          ...projectSnap.data(),
+    for (const project of projects) {
+
+      const teamMembers = [];
+
+      for (const empId of project.assignedEmployees || []) {
+
+        const empSnap = await db
+          .collection("employees")
+          .doc(empId)
+          .get();
+
+        if (!empSnap.exists) continue;
+
+        const empData = empSnap.data();
+
+        teamMembers.push({
+          id: empSnap.id,
+          name: empData.name,
+          role: empData.role,
         });
       }
+
+      project.teamMembers = teamMembers;
     }
 
     res.status(200).json(projects);
-  } catch (error) {
+  } 
+  catch (error) {
     console.error(
       "Get employee projects error:",
       error
@@ -527,11 +475,58 @@ const removeProjectFromEmployee = async (req, res) => {
     });
   }
 };
+
+const getEmployeeProjectsAll = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const employeeSnap = await db
+      .collection("employees")
+      .doc(id)
+      .get();
+
+    if (!employeeSnap.exists) {
+      return res.status(404).json({
+        message: "Employee not found",
+      });
+    }
+
+    const employeeData = employeeSnap.data();
+    const assignedProjects =
+      employeeData.assignedProjects || [];
+
+    const projects = [];
+
+    for (const projectId of assignedProjects) {
+      const projectSnap = await db
+        .collection("projects")
+        .doc(projectId)
+        .get();
+
+      if (projectSnap.exists) {
+        projects.push({
+          id: projectSnap.id,
+          ...projectSnap.data(),
+        });
+      }
+    }
+
+    res.status(200).json(projects);
+  } catch (error) {
+    console.error(
+      "Get employee projects error:",
+      error
+    );
+    res.status(500).json({
+      message:
+        "Failed to fetch employee assigned projects",
+    });
+  }
+};
     
 
   
 module.exports = {
-  employeeLogin,
   getEmployeeProfile,
   getEmployees,
   getEmployeesCount,
@@ -542,4 +537,5 @@ module.exports = {
   assignProjectToEmployee,
   getEmployeeProjects,
   removeProjectFromEmployee,
+  getEmployeeProjectsAll
 };

@@ -1,9 +1,10 @@
 const { db, admin } = require("../FirebaseAdmin");
 const logActivity = require("../utils/logActivity");
 const sendNotifications = require("../utils/sendNotifications");
+const { getProjectsByIds } = require("../utils/projectHelper");
+
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const getClientProfile = async (req, res) => {
@@ -24,23 +25,8 @@ const getClientProfile = async (req, res) => {
     const clientData = clientDoc.data();
     delete clientData.password;
 
-    const projectIds = clientData.assignedProjects || [];
-
-    const projects = await Promise.all(
-      projectIds.map(async (projectId) => {
-
-        const projectDoc = await db
-          .collection("projects")
-          .doc(projectId)
-          .get();
-
-        if (!projectDoc.exists) return null;
-
-        return {
-          id: projectDoc.id,
-          ...projectDoc.data(),
-        };
-      })
+    const projects = await getProjectsByIds(
+      clientData.assignedProjects
     );
 
    res.status(200).json({
@@ -61,65 +47,58 @@ const getClientProfile = async (req, res) => {
 
 };
 
-const clientLogin = async (req,res) => {
-  try{
-    const { email, password } = req.body;
-
-    const snapshot = await db
+const getClientProjects = async (req, res) => {
+  try {
+    const clientDoc = await db
       .collection("clients")
-      .where("email", "==", email)
-      .limit(1)
+      .doc(req.user.id)
       .get();
 
-    if (snapshot.empty) {
-      return res.status(401).json({
-        message: "Invalid credentials",
+    if (!clientDoc.exists) {
+      return res.status(404).json({
+        message: "Client not found",
       });
     }
 
-    const clientDoc = snapshot.docs[0];
+    const clientData = clientDoc.data();
 
-    const client = {
-      id: clientDoc.id,
-      ...clientDoc.data(),
-    };
-
-    const isMatch = await bcrypt.compare(
-      password,
-      client.password
+    const projects = await getProjectsByIds(
+      clientData.assignedProjects || []
     );
 
-    if (!isMatch) {
-      return res.status(401).json({
-        message: "Invalid credentials",
-      });
+    for (const project of projects) {
+      const teamMembers = [];
+
+      for (const empId of project.assignedEmployees || []) {
+        const empSnap = await db
+          .collection("employees")
+          .doc(empId)
+          .get();
+
+        if (!empSnap.exists) continue;
+
+        const empData = empSnap.data();
+
+        teamMembers.push({
+          id: empSnap.id,
+          name: empData.name,
+          role: empData.role,
+        });
+      }
+
+      project.teamMembers = teamMembers;
     }
 
-    const token = jwt.sign(
-      {
-        id: client.id,
-        email: client.email,
-        role: client.role,
-      },
-      JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    res.status(200).json(projects);
 
-    return res.status(200).json({
-      token,
-      client: {
-        id: client.id,
-        email: client.email,
-        name: client.name,
-        role: client.role,
-      },
+  } catch (error) {
+    console.error("Get client projects error:", error);
+
+    res.status(500).json({
+      message: "Failed to fetch client projects",
     });
   }
-  catch(error){
-    res.status(401).json({message:"Invalid credentials"});
-    console.log(err)
-  }
-}
+};
 
 const getClients = async (req, res) => {
   try {
@@ -212,7 +191,7 @@ const deleteClient = async (req, res) => {
 
 module.exports = {
   getClientProfile,
-  clientLogin,
+  getClientProjects,
   getClients,
   createClient,
   getClientCount,
