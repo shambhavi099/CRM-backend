@@ -5,7 +5,7 @@ const {
   getEmployeeProfile,
   getEmployees,
   getEmployeesCount,
-  updateEmployee,
+ // updateEmployee,
   deleteEmployee,
   createEmployee,
   getAvailableProjects,
@@ -24,7 +24,7 @@ const roleMiddleware = require("../middleware/roleMiddleware");
 router.get("/", getEmployees);
 router.get("/count", getEmployeesCount);
 router.post("/", validateEmployee, createEmployee);
-router.patch("/:id", updateEmployee);
+//router.patch("/:id", updateEmployee);
 router.delete("/:id", deleteEmployee);
 
 router.get("/profile", authMiddleware, roleMiddleware(["employee"]), getEmployeeProfile)

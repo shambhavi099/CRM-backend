@@ -204,19 +204,25 @@ const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const { role, salary } = req.body;
+
     await db.collection("employees").doc(id).update({
-      ...req.body,
+      ...(role !== undefined && { role }),
+      ...(salary !== undefined && { salary }),
       updatedAt: new Date(),
     });
 
     res.status(200).json({
       id,
-      ...req.body,
+      role,
+      salary,
       updatedAt: new Date(),
     });
 
   } catch (err) {
-    res.status(500).json({ message: "Failed to update employee" });
+    res.status(500).json({
+      message: "Failed to update employee",
+    });
   }
 };
 
@@ -526,18 +532,24 @@ const getEmployeeProjectsAll = async (req, res) => {
 
 const updateEmployeeProfile = async (req, res) => {
   try {
-    const { name, phone, role, email, portfolio, resume } = req.body;
+    const { name, number, email, pastCompany, portfolio,resume, pfAccount, accountNumber, salaryAccount, hobby, futurePlans, emergencyContact  } = req.body;
 
     await db
       .collection("employees")
       .doc(req.user.id)
       .update({
         ...(name && { name }),
-        ...(phone && { phone }),
+        ...(number && { number }),
         ...(email && { email }),
-        ...(role && { role }),
         ...(portfolio &&{ portfolio }),
         ...(resume && { resume }),
+        ...(pastCompany && {pastCompany}),
+        ...(pfAccount && {pfAccount}),
+        ...(accountNumber && {accountNumber}),
+        ...(salaryAccount && {salaryAccount}),
+        ...(hobby && { hobby }),
+        ...(futurePlans && { futurePlans }),
+        ...(emergencyContact && {emergencyContact}),
         updatedAt: new Date(),
       });
 
