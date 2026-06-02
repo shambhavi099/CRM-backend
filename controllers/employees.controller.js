@@ -493,7 +493,7 @@ const getEmployeeProjectsAll = async (req, res) => {
 
     const employeeData = employeeSnap.data();
     const assignedProjects =
-      employeeData.assignedProjects || [];
+    employeeData.assignedProjects || [];
 
     const projects = [];
 
@@ -523,6 +523,36 @@ const getEmployeeProjectsAll = async (req, res) => {
     });
   }
 };
+
+const updateEmployeeProfile = async (req, res) => {
+  try {
+    const { name, phone, role, email, portfolio, resume } = req.body;
+
+    await db
+      .collection("employees")
+      .doc(req.user.id)
+      .update({
+        ...(name && { name }),
+        ...(phone && { phone }),
+        ...(email && { email }),
+        ...(role && { role }),
+        ...(portfolio &&{ portfolio }),
+        ...(resume && { resume }),
+        updatedAt: new Date(),
+      });
+
+    res.status(200).json({
+      message: "Profile updated successfully",
+    });
+
+  } catch (error) {
+    console.error("Update profile error:", error);
+
+    res.status(500).json({
+      message: "Failed to update profile",
+    });
+  }
+};
     
 
   
@@ -537,5 +567,6 @@ module.exports = {
   assignProjectToEmployee,
   getEmployeeProjects,
   removeProjectFromEmployee,
-  getEmployeeProjectsAll
+  getEmployeeProjectsAll,
+  updateEmployeeProfile
 };
