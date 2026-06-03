@@ -1,7 +1,9 @@
 const { db } = require("../FirebaseAdmin");
 const sendNotifications = require("../utils/sendNotifications")
 const { getProjectsByIds } = require("../utils/projectHelper");
+const cloudinary = require("../utils/cloudinary");
 
+const streamifier = require("streamifier");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -27,6 +29,7 @@ const getEmployees = async (req, res) => {
   }
 };
 
+
 const createEmployee = async (req, res) => {
   const {
     name,
@@ -39,7 +42,6 @@ const createEmployee = async (req, res) => {
     salary,
     timeServed,
     portfolio,
-    resume,
     aadhar,
     pan,
     empId,
@@ -53,6 +55,28 @@ const createEmployee = async (req, res) => {
 
   const hashedPassword = await bcrypt.hash(password, 10)
 
+  let resumeUrl = "";
+  if (req.file) {
+    const result = await new Promise((resolve, reject) => {
+
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: "raw",
+          folder: "employee-resumes",
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        }
+      );
+      streamifier
+        .createReadStream(req.file.buffer)
+        .pipe(stream);
+    });
+
+    resumeUrl = result.secure_url;
+  }
+
   const docRef = await db.collection("employees").add({
     name,
     number,
@@ -65,7 +89,7 @@ const createEmployee = async (req, res) => {
     salary,
     timeServed,
     portfolio,
-    resume,
+    resume:resumeUrl,
     aadhar,
     pan,
     empId,
@@ -89,7 +113,7 @@ const createEmployee = async (req, res) => {
     salary,
     timeServed,
     portfolio,
-    resume,
+    resume:resumeUrl,
     aadhar,
     pan,
     empId,
@@ -213,13 +237,12 @@ const updateEmployee = async (req, res) => {
     });
 
     res.status(200).json({
-      id,
-      role,
-      salary,
-      updatedAt: new Date(),
+      message: "Employee updated successfully",
     });
 
   } catch (err) {
+    console.error(err);
+
     res.status(500).json({
       message: "Failed to update employee",
     });
@@ -532,24 +555,39 @@ const getEmployeeProjectsAll = async (req, res) => {
 
 const updateEmployeeProfile = async (req, res) => {
   try {
-    const { name, number, email, pastCompany, portfolio,resume, pfAccount, accountNumber, salaryAccount, hobby, futurePlans, emergencyContact  } = req.body;
+
+    const {
+      password, // ignore password completely
+      name,
+      number,
+      email,
+      pastCompany,
+      portfolio,
+      resume,
+      pfAccount,
+      accountNumber,
+      salaryAccount,
+      hobby,
+      futurePlans,
+      emergencyContact
+    } = req.body;
 
     await db
       .collection("employees")
       .doc(req.user.id)
       .update({
-        ...(name && { name }),
-        ...(number && { number }),
-        ...(email && { email }),
-        ...(portfolio &&{ portfolio }),
-        ...(resume && { resume }),
-        ...(pastCompany && {pastCompany}),
-        ...(pfAccount && {pfAccount}),
-        ...(accountNumber && {accountNumber}),
-        ...(salaryAccount && {salaryAccount}),
-        ...(hobby && { hobby }),
-        ...(futurePlans && { futurePlans }),
-        ...(emergencyContact && {emergencyContact}),
+        ...(name !== undefined && { name }),
+        ...(number !== undefined && { number }),
+        ...(email !== undefined && { email }),
+        ...(pastCompany !== undefined && { pastCompany }),
+        ...(portfolio !== undefined && { portfolio }),
+        ...(resume !== undefined && { resume }),
+        ...(pfAccount !== undefined && { pfAccount }),
+        ...(accountNumber !== undefined && { accountNumber }),
+        ...(salaryAccount !== undefined && { salaryAccount }),
+        ...(hobby !== undefined && { hobby }),
+        ...(futurePlans !== undefined && { futurePlans }),
+        ...(emergencyContact !== undefined && { emergencyContact }),
         updatedAt: new Date(),
       });
 

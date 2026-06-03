@@ -5,7 +5,7 @@ const {
   getEmployeeProfile,
   getEmployees,
   getEmployeesCount,
- // updateEmployee,
+  updateEmployee,
   deleteEmployee,
   createEmployee,
   getAvailableProjects,
@@ -19,12 +19,14 @@ const {
 const validateEmployee = require("../middleware/validateEmployee.middleware");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const upload = require("../middleware/uploadMiddleware");
+//const validateEmployeeMiddleware = require("../middleware/validateEmployee.middleware");
 
 // Employee CRUD Routes
 router.get("/", getEmployees);
 router.get("/count", getEmployeesCount);
-router.post("/", validateEmployee, createEmployee);
-//router.patch("/:id", updateEmployee);
+router.post("/", upload.single("resume"), validateEmployee,createEmployee);
+router.patch("/:id", updateEmployee);
 router.delete("/:id", deleteEmployee);
 
 router.get("/profile", authMiddleware, roleMiddleware(["employee"]), getEmployeeProfile)
@@ -35,7 +37,7 @@ router.get("/available-projects", getAvailableProjects);
 router.post("/assign-project", assignProjectToEmployee);
 router.get("/projects", authMiddleware, getEmployeeProjects);
 router.get("/:id/projects", authMiddleware, getEmployeeProjectsAll);
-router.put("/profile", authMiddleware, updateEmployeeProfile)
+router.put("/profile", authMiddleware, roleMiddleware(["employee"]), updateEmployeeProfile)
 
 // Remove Assigned Project
 router.post("/remove-project", removeProjectFromEmployee); 

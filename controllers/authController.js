@@ -68,8 +68,8 @@ const login = async (req, res) => {
       return res.status(401).json({
         message: "Invalid credentials",
       });
-    }
 
+    }
     // Verify password
     const isMatch = await bcrypt.compare(
       password,
