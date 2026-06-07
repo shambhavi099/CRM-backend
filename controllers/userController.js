@@ -3,7 +3,7 @@ const bcrypt = require("bcryptjs");
 
 const createManager = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, profilePicture } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
 
     const existing = await db
@@ -23,6 +23,7 @@ const createManager = async (req, res) => {
       email: normalizedEmail,
       password: hashedPassword,
       role: "manager",
+      profilePicture:"",
       isActive: "true",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -101,9 +102,66 @@ const deleteManager = async (req, res) => {
   }
 };
 
+const updateManagerProfile = async (req, res) => {
+  try {
+    const { } = req.body;
+
+    let profilePictureUrl;
+
+    if (req.files?.profilePicture?.[0]) {
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: "image",
+            folder: "manager-profile-pictures",
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+
+        streamifier
+          .createReadStream(
+            req.files.profilePicture[0].buffer
+          )
+          .pipe(stream);
+      });
+
+      profilePictureUrl = result.secure_url;
+    }
+
+    const updates = {
+      ...(profilePictureUrl && {
+        profilePicture: profilePictureUrl,
+      }),
+      updatedAt: new Date(),
+    };
+
+    await db
+      .collection("users")
+      .doc(req.user.id)
+      .update(updates);
+
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      updatedFields: updates,
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createManager,
   //createClient,
   getManagers,
   deleteManager,
+  updateManagerProfile
+
 };

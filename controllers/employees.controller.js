@@ -8,6 +8,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET;
 
+
 const getEmployees = async (req, res) => {
   try {
     const snapshot = await db
@@ -29,8 +30,8 @@ const getEmployees = async (req, res) => {
   }
 };
 
-
 const createEmployee = async (req, res) => {
+  console.log("FILES:", req.files);
   const {
     name,
     number,
@@ -51,12 +52,13 @@ const createEmployee = async (req, res) => {
     hobby,
     futurePlans,
     emergencyContact,
+    profilePicture
   } = req.body;
 
   const hashedPassword = await bcrypt.hash(password, 10)
 
   let resumeUrl = "";
-  if (req.file) {
+  if (req.files?.resume?.[0]) {
     const result = await new Promise((resolve, reject) => {
 
       const stream = cloudinary.uploader.upload_stream(
@@ -69,12 +71,40 @@ const createEmployee = async (req, res) => {
           resolve(result);
         }
       );
+
       streamifier
-        .createReadStream(req.file.buffer)
+        .createReadStream(
+          req.files.resume[0].buffer
+        )
         .pipe(stream);
     });
 
     resumeUrl = result.secure_url;
+  }
+
+  let profilePictureUrl = "";
+
+  if (req.files?.profilePicture?.[0]) {
+    const result = await new Promise((resolve, reject) => {
+
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: "employee-profile-pictures",
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        }
+      );
+
+      streamifier
+        .createReadStream(
+          req.files.profilePicture[0].buffer
+        )
+        .pipe(stream);
+    });
+
+    profilePictureUrl = result.secure_url;
   }
 
   const docRef = await db.collection("employees").add({
@@ -99,8 +129,15 @@ const createEmployee = async (req, res) => {
     hobby,
     futurePlans,
     emergencyContact,
+    profilePicture:profilePictureUrl,
     createdAt: new Date(),
   });
+
+    await sendNotifications(
+      'Employee Created Sucessfully',
+      `An employee has been created`,
+      'EMPLOYEE_CREATED'
+    )
 
   res.status(201).json({
     id: docRef.id,
@@ -123,6 +160,7 @@ const createEmployee = async (req, res) => {
     hobby,
     futurePlans,
     emergencyContact,
+    profilePicture:profilePictureUrl
   });
 };
 
@@ -315,6 +353,22 @@ const assignProjectToEmployee = async (req, res) => {
     const employeeData = employeeSnap.data();
     const projectData = projectSnap.data();
 
+    const clientId = projectData.clientId;
+
+    const usersSnap = await db
+      .collection("users")
+      .get();
+
+    const adminAndManagers = usersSnap.docs.map(
+      (doc) => doc.id
+    );
+
+    const recipients = [
+      employeeId,
+      clientId,
+      ...adminAndManagers,
+    ];
+
     const assignedProjects =
       employeeData.assignedProjects || [];
 
@@ -351,10 +405,11 @@ const assignProjectToEmployee = async (req, res) => {
     }
 
     await sendNotifications(
-      'Project Assigned Sucessfully',
-      `This ${projectData.projectName}' is assigned to '${employeeData.name}'`,
-      'PROJECT_ASSIGNED'
-    )
+      "Project Assigned Successfully",
+      `${projectData.projectName} assigned to ${employeeData.name}`,
+      "PROJECT_ASSIGNED",
+      recipients
+    );
 
     res.status(200).json({
       message: "Project assigned successfully",
@@ -555,51 +610,105 @@ const getEmployeeProjectsAll = async (req, res) => {
 
 const updateEmployeeProfile = async (req, res) => {
   try {
-
     const {
-      password, // ignore password completely
+      password, // ignored intentionally
       name,
       number,
       email,
       pastCompany,
       portfolio,
-      resume,
       pfAccount,
       accountNumber,
       salaryAccount,
       hobby,
       futurePlans,
-      emergencyContact
+      emergencyContact,
     } = req.body;
+
+    let resumeUrl;
+    let profilePictureUrl;
+
+    // Upload Resume
+    if (req.files?.resume?.[0]) {
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: "raw",
+            folder: "employee-resumes",
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+
+        streamifier
+          .createReadStream(req.files.resume[0].buffer)
+          .pipe(stream);
+      });
+
+      resumeUrl = result.secure_url;
+    }
+
+    // Upload Profile Picture
+    if (req.files?.profilePicture?.[0]) {
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: "image",
+            folder: "employee-profile-pictures",
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+
+        streamifier
+          .createReadStream(
+            req.files.profilePicture[0].buffer
+          )
+          .pipe(stream);
+      });
+
+      profilePictureUrl = result.secure_url;
+    }
+
+    const updates = {
+      ...(name !== undefined && { name }),
+      ...(number !== undefined && { number }),
+      ...(email !== undefined && { email }),
+      ...(pastCompany !== undefined && { pastCompany }),
+      ...(portfolio !== undefined && { portfolio }),
+      ...(resumeUrl && { resume: resumeUrl }),
+      ...(pfAccount !== undefined && { pfAccount }),
+      ...(accountNumber !== undefined && { accountNumber }),
+      ...(salaryAccount !== undefined && { salaryAccount }),
+      ...(hobby !== undefined && { hobby }),
+      ...(futurePlans !== undefined && { futurePlans }),
+      ...(emergencyContact !== undefined && { emergencyContact }),
+      ...(profilePictureUrl && {
+        profilePicture: profilePictureUrl,
+      }),
+      updatedAt: new Date(),
+    };
 
     await db
       .collection("employees")
       .doc(req.user.id)
-      .update({
-        ...(name !== undefined && { name }),
-        ...(number !== undefined && { number }),
-        ...(email !== undefined && { email }),
-        ...(pastCompany !== undefined && { pastCompany }),
-        ...(portfolio !== undefined && { portfolio }),
-        ...(resume !== undefined && { resume }),
-        ...(pfAccount !== undefined && { pfAccount }),
-        ...(accountNumber !== undefined && { accountNumber }),
-        ...(salaryAccount !== undefined && { salaryAccount }),
-        ...(hobby !== undefined && { hobby }),
-        ...(futurePlans !== undefined && { futurePlans }),
-        ...(emergencyContact !== undefined && { emergencyContact }),
-        updatedAt: new Date(),
-      });
+      .update(updates);
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Profile updated successfully",
+      employeeId: req.user.id,
+      updatedFields: updates,
     });
 
   } catch (error) {
     console.error("Update profile error:", error);
 
-    res.status(500).json({
-      message: "Failed to update profile",
+    return res.status(500).json({
+      message: error.message,
     });
   }
 };

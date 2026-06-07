@@ -25,7 +25,15 @@ const upload = require("../middleware/uploadMiddleware");
 // Employee CRUD Routes
 router.get("/", getEmployees);
 router.get("/count", getEmployeesCount);
-router.post("/", upload.single("resume"), validateEmployee,createEmployee);
+router.post(
+  "/",
+  upload.fields([
+    { name: "resume", maxCount: 1 },
+    { name: "profilePicture", maxCount: 1 }
+  ]),
+  validateEmployee,
+  createEmployee
+);
 router.patch("/:id", updateEmployee);
 router.delete("/:id", deleteEmployee);
 
@@ -37,7 +45,16 @@ router.get("/available-projects", getAvailableProjects);
 router.post("/assign-project", assignProjectToEmployee);
 router.get("/projects", authMiddleware, getEmployeeProjects);
 router.get("/:id/projects", authMiddleware, getEmployeeProjectsAll);
-router.put("/profile", authMiddleware, roleMiddleware(["employee"]), updateEmployeeProfile)
+router.put(
+  "/profile",
+  authMiddleware,
+  roleMiddleware(["employee"]),
+  upload.fields([
+    { name: "resume", maxCount: 1 },
+    { name: "profilePicture", maxCount: 1 }
+  ]),
+  updateEmployeeProfile
+);
 
 // Remove Assigned Project
 router.post("/remove-project", removeProjectFromEmployee); 

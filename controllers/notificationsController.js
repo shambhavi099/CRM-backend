@@ -2,14 +2,26 @@ const { db } = require("../FirebaseAdmin");
 
 const getNotifications = async (req, res) => {
     try{
-        const snapshot = await db.collection("notifications")
-        .orderBy("createdAt", "desc")
+         const snapshot = await db
+        .collection("notifications")
+        .where(
+            "recipients",
+            "array-contains",
+            req.user.id
+        )
         .get();
 
         const notifications = snapshot.docs.map((doc) => ({
             id : doc.id,
             ...doc.data(),
         }));
+
+        notifications.sort((a, b) => {
+        return (
+            b.createdAt.toMillis() -
+            a.createdAt.toMillis()
+        );
+        });
 
         res.status(200).json(notifications)
     }

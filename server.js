@@ -11,7 +11,8 @@ const activityRoutes = require("./routes/activityRoutes");
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const notificationRoutes = require("./routes/notificationsRoutes");
-
+const passwordRoutes = require("./routes/password.routes");
+const messageRoutes = require("./routes/message.routes")
 const app = express();
 
 app.use(
@@ -41,6 +42,8 @@ app.use("/api/activities", activityRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", notificationRoutes)
+app.use("/api/password", passwordRoutes)
+app.use("/api/messages", messageRoutes)
 
 const PORT = process.env.PORT || 5000;
 
