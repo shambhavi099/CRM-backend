@@ -64,12 +64,12 @@ const login = async (req, res) => {
     }
 
     // User not found
-    if (!user) {
+  /*  if (!user) {
       return res.status(401).json({
         message: "Invalid credentials",
       });
 
-    }
+    }*/
     // Verify password
     const isMatch = await bcrypt.compare(
       password,
@@ -118,8 +118,6 @@ const login = async (req, res) => {
     });
   }
 };
-
-module.exports = { login };
 
 const findUserByEmail = async (
   collectionName,
