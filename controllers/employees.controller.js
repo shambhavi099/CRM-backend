@@ -410,14 +410,17 @@ const assignProjectToEmployee = async (req, res) => {
         updatedAt: new Date(),
       });
     }
-
-    await sendNotifications(
-      "Project Assigned Successfully",
-      `${projectData.projectName} assigned to ${employeeData.name}`,
-      "PROJECT_ASSIGNED",
-      recipients
-    );
-
+    try{
+      await sendNotifications(
+          "Project Assigned Successfully",
+          `${projectData.projectName} assigned to ${employeeData.name}`,
+          "PROJECT_ASSIGNED",
+          recipients
+        );
+    }
+    catch(error){
+      console.log(error.message)
+    }
     res.status(200).json({
       message: "Project assigned successfully",
     });
@@ -616,6 +619,9 @@ const getEmployeeProjectsAll = async (req, res) => {
 };
 
 const updateEmployeeProfile = async (req, res) => {
+    console.log("=== PROFILE UPDATE HIT ===");
+    console.log("BODY:", req.body);
+    console.log("FILES:", req.files);
   try {
     const {
       password, // ignored intentionally
