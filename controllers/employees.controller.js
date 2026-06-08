@@ -32,7 +32,8 @@ const getEmployees = async (req, res) => {
 };
 
 const createEmployee = async (req, res) => {
-  console.log("FILES:", req.files);
+  try{
+    console.log("FILES:", req.files);
   const {
     name,
     number,
@@ -169,6 +170,14 @@ const createEmployee = async (req, res) => {
     emergencyContact,
     profilePicture:profilePictureUrl
   });
+  }
+  catch(error){
+    console.error("Create Employee Error:", error);
+
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
 };
 
 const getEmployeeProfile = async (req, res) => {
