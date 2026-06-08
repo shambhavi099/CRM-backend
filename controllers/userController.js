@@ -1,19 +1,15 @@
 const { db, admin } = require("../FirebaseAdmin");
 const bcrypt = require("bcryptjs");
+const{ emailExists }= require("../utils/emailExists")
 
 const createManager = async (req, res) => {
   try {
     const { name, email, password, profilePicture } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
-
-    const existing = await db
-      .collection("users")
-      .where("email", "==", normalizedEmail)
-      .limit(1)
-      .get();
-
-    if (!existing.empty) {
-      return res.status(400).json({ message: "User already exists" });
+    if (await emailExists(normalizedEmail)) {
+      return res.status(400).json({
+        message: "Email already exists",
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);

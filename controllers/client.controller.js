@@ -1,6 +1,7 @@
 const { db, admin } = require("../FirebaseAdmin");
 const logActivity = require("../utils/logActivity");
 const sendNotifications = require("../utils/sendNotifications");
+const {emailExists} = require("../utils/emailExists")
 const { getProjectsByIds } = require("../utils/projectHelper");
 
 const bcrypt = require("bcryptjs");
@@ -123,9 +124,12 @@ const getClients = async (req, res) => {
 
 const createClient = async (req, res) => {
   const { name, email, company, phone,password } = req.body;
-
-
-  const hashedPassword = await bcrypt.hash(password, 10);
+  if (await emailExists(email)) {
+    return res.status(400).json({
+      message: "Email already exists",
+    });
+  }
+    const hashedPassword = await bcrypt.hash(password, 10);
   const docRef = await db.collection("clients").add({
     name,
     email,

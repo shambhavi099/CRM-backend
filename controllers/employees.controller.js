@@ -1,6 +1,7 @@
 const { db } = require("../FirebaseAdmin");
 const sendNotifications = require("../utils/sendNotifications")
 const { getProjectsByIds } = require("../utils/projectHelper");
+const{ emailExists} = require("../utils/emailExists")
 const cloudinary = require("../utils/cloudinary");
 
 const streamifier = require("streamifier");
@@ -54,6 +55,12 @@ const createEmployee = async (req, res) => {
     emergencyContact,
     profilePicture
   } = req.body;
+
+  if (await emailExists(email)) {
+    return res.status(400).json({
+      message: "Email already exists",
+    });
+  }
 
   const hashedPassword = await bcrypt.hash(password, 10)
 
