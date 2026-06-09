@@ -5,6 +5,7 @@ const getRecipients = async (req, res) => {
   try {
     const { role } = req.params;
 
+    console.log("Role:", role);
     let collectionName;
 
     if (role === "employees") {
@@ -35,7 +36,6 @@ const getRecipients = async (req, res) => {
         (user) => user.role === "manager"
       );
     }
-
     return res.status(200).json(recipients);
 
   } catch (error) {
